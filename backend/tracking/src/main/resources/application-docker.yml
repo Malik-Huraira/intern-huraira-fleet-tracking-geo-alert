@@ -1,0 +1,106 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://postgis:5432/fleet_tracking
+    username: postgres
+    password: Qwerty@123
+    driver-class-name: org.postgresql.Driver
+
+  jackson:
+    time-zone: Asia/Karachi
+
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: alert-consumer-group
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    streams:
+      enabled: true
+      application-id: fleet-tracking-streams-${HOSTNAME:localhost}
+      properties:
+        default.timestamp.extractor: org.apache.kafka.streams.processor.WallclockTimestampExtractor
+        processing.guarantee: at_least_once
+        commit.interval.ms: 1000
+        request.timeout.ms: 40000
+        session.timeout.ms: 30000
+        max.poll.interval.ms: 300000
+        retries: 10
+        retry.backoff.ms: 1000
+        reconnect.backoff.max.ms: 10000
+      state-dir: /tmp/kafka-streams/${spring.kafka.streams.application-id}  
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  webflux:
+    base-path: /api
+
+# =============================================================================
+# APPLICATION-SPECIFIC CONFIGURATION (Consistent with local application.yml)
+# =============================================================================
+
+# Vehicle Status Thresholds
+vehicle:
+  status:
+    online:
+      threshold:
+        minutes: 1 # Seen within last 1 minute → ONLINE
+    idle:
+      threshold:
+        minutes: 10 # No movement for 10+ minutes → IDLE
+    offline:
+      threshold:
+        minutes: 30 # No update for 30+ minutes → OFFLINE
+
+# Speeding Alert Configuration
+speeding:
+  threshold:
+    kph: 80 # Alert if speed > 80 kph
+  alert:
+    cooldown:
+      minutes: 5 # Avoid duplicate alerts within 5 minutes
+
+# Idle Alert Configuration
+# Requirement: Alert if speed = 0 kph for more than 10 minutes
+idle:
+  threshold:
+    minutes: 10 # ← Fixed to match project requirement (10 minutes)
+
+# Kafka Streams Idle Detection Window
+streams:
+  idle:
+    window:
+      minutes: 10 # Must match idle threshold for accurate detection (10 minutes)
+
+# Simulator Configuration
+simulator:
+  enabled: true
+  vehicle-count: 10
+  update-interval-ms: 2000
+  idle:
+    max-duration-seconds: 900 # Allow up to 15 minutes idle for testing 10-min threshold
+
+# =============================================================================
+# MANAGEMENT & SERVER
+# =============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+server:
+  port: 8080

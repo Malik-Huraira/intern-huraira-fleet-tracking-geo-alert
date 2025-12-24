@@ -1,0 +1,140 @@
+services:
+  # ✅ POSTGIS Database with PostGIS extension
+  postgis:
+    image: postgis/postgis:15-3.3-alpine
+    container_name: fleet-postgis
+    environment:
+      TZ: Asia/Karachi
+      POSTGRES_DB: fleet_tracking
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Qwerty@123
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgis_data:/var/lib/postgresql/data
+    networks:
+      - fleet-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ✅ Zookeeper
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.4.0
+    container_name: fleet-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - fleet-network
+    restart: unless-stopped
+
+  # ✅ Kafka Broker
+  kafka:
+    image: confluentinc/cp-kafka:7.4.0
+    container_name: fleet-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      TZ: Asia/Karachi
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "9092:9092"
+    networks:
+      - fleet-network
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "kafka-topics --bootstrap-server kafka:9092 --list || exit 1"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ✅ Backend (Spring Boot)
+  backend:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    container_name: fleet-backend
+    depends_on:
+      postgis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      TZ: Asia/Karachi
+      JAVA_OPTS: -Duser.timezone=Asia/Karachi
+      SPRING_PROFILES_ACTIVE: docker
+    ports:
+      - "8080:8080"
+    networks:
+      - fleet-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+
+  # ✅ Frontend (Vite + React + Shadcn)
+  frontend:
+    image: node:18-alpine
+    container_name: fleet-frontend
+    working_dir: /app
+    volumes:
+      - ../../../frontend/geofleet-dashboard:/app
+    ports:
+      - "8081:8081"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8080/api
+      VITE_SSE_URL: http://localhost:8080/api/stream
+      VITE_USE_MOCK_DATA: false
+    depends_on:
+      - backend
+    command: sh -c "npm install && npm run dev"
+    networks:
+      - fleet-network
+    restart: unless-stopped
+
+  # ✅ Prometheus (for metrics monitoring)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: fleet-prometheus
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - fleet-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+# =============================================================================
+# NETWORK & VOLUMES
+# =============================================================================
+networks:
+  fleet-network:
+    driver: bridge
+
+volumes:
+  postgis_data:

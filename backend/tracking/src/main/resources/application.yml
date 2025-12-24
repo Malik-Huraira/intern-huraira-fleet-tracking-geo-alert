@@ -1,0 +1,119 @@
+spring:
+  application:
+    name: fleet-tracking-backend
+
+  datasource:
+    url: jdbc:postgresql://postgis:5432/fleet_tracking
+    username: postgres
+    password: Qwerty@123
+    driver-class-name: org.postgresql.Driver
+
+  jackson:
+    time-zone: Asia/Karachi
+
+  kafka:
+    bootstrap-servers: kafka:9092
+    consumer:
+      group-id: alert-consumer-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+    listener:
+      ack-mode: manual
+    streams:
+      enabled: true
+      application-id: fleet-tracking-streams-${HOSTNAME:localhost}
+      bootstrap-servers: kafka:9092
+      properties:
+        default.timestamp.extractor: org.apache.kafka.streams.processor.WallclockTimestampExtractor
+        default.key.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        default.value.serde: org.apache.kafka.common.serialization.Serdes$StringSerde
+        commit.interval.ms: 1000
+        processing.guarantee: exactly_once_v2
+        num.stream.threads: 2
+      state-dir: /tmp/kafka-streams/${spring.kafka.streams.application-id}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+    show-sql: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+  webflux:
+    base-path: /api
+
+# =============================================================================
+# APPLICATION-SPECIFIC CONFIGURATION
+# =============================================================================
+
+# Vehicle Status Thresholds
+vehicle:
+  status:
+    online:
+      threshold:
+        minutes: 1
+    idle:
+      threshold:
+        minutes: 10
+    offline:
+      threshold:
+        minutes: 30
+
+# Speeding Alert Configuration
+speeding:
+  threshold:
+    kph: 80
+
+# Idle Alert Configuration
+idle:
+  threshold:
+    minutes: 10
+
+# Kafka Streams Idle Detection Window
+streams:
+  idle:
+    window:
+      minutes: 10
+
+# Simulator Configuration
+simulator:
+  enabled: true
+  vehicle-count: 10
+  update-interval-ms: 2000
+
+# =============================================================================
+# MANAGEMENT & SERVER
+# =============================================================================
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+server:
+  port: 8080
+
+# =============================================================================
+# LOGGING
+# =============================================================================
+logging:
+  level:
+    com.geofleet.tracking: DEBUG
+    org.springframework.kafka: INFO
+    org.apache.kafka.streams: INFO
+    org.apache.kafka.clients.consumer: WARN

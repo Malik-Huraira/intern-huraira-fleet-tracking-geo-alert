@@ -1,0 +1,21 @@
+# Backend
+backend/tracking/target/
+backend/tracking/.mvn/
+backend/tracking/mvnw
+backend/tracking/mvnw.cmd
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Docker
+.docker/
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+
+# Logs
+*.log

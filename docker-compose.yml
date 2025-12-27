@@ -69,7 +69,7 @@ services:
   # ✅ Backend (Spring Boot)
   backend:
     build:
-      context: ..
+      context: ./backend/tracking
       dockerfile: Dockerfile
     container_name: fleet-backend
     depends_on:
@@ -101,7 +101,7 @@ services:
     container_name: fleet-frontend
     working_dir: /app
     volumes:
-      - ../../../frontend/geofleet-dashboard:/app
+      - ./frontend/geofleet-dashboard:/app 
     ports:
       - "8081:8081"
     environment:

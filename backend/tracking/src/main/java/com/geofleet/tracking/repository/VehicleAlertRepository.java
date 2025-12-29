@@ -42,6 +42,20 @@ public interface VehicleAlertRepository extends JpaRepository<VehicleAlert, Long
     List<VehicleAlert> findByAlertTypeOrderByDetectedAtDesc(String alertType);
 
     /**
+     * ✅ Historical: Find alerts within a date range
+     */
+    @Query("SELECT va FROM VehicleAlert va WHERE va.detectedAt >= :from AND va.detectedAt <= :to ORDER BY va.detectedAt DESC")
+    List<VehicleAlert> findByDetectedAtBetweenOrderByDetectedAtDesc(
+            @Param("from") LocalDateTime from, 
+            @Param("to") LocalDateTime to);
+
+    /**
+     * ✅ Historical: Find alerts by vehicle and date range
+     */
+    List<VehicleAlert> findByVehicleIdAndDetectedAtBetweenOrderByDetectedAtDesc(
+            String vehicleId, LocalDateTime from, LocalDateTime to);
+
+    /**
      * ✅ FIX: Find alerts within a geographic area using spatial queries
      * Useful for area-based alert analysis
      */

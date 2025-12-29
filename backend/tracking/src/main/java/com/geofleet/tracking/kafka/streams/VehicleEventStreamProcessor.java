@@ -3,8 +3,12 @@ package com.geofleet.tracking.kafka.streams;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.geofleet.tracking.model.dto.AlertEventDTO;
 import com.geofleet.tracking.model.dto.VehicleEventDTO;
+import com.geofleet.tracking.model.entity.VehicleAlert;
 import com.geofleet.tracking.model.enums.AlertType;
 import com.geofleet.tracking.repository.GeoFenceRepository;
+import com.geofleet.tracking.repository.VehicleAlertRepository;
+import com.geofleet.tracking.sse.AlertSsePublisher;
+import com.geofleet.tracking.util.GeometryUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.common.serialization.Serdes;
@@ -28,6 +32,9 @@ public class VehicleEventStreamProcessor {
 
     private final ObjectMapper objectMapper;
     private final GeoFenceRepository geoFenceRepository;
+    private final VehicleAlertRepository vehicleAlertRepository;
+    private final AlertSsePublisher alertSsePublisher;
+    private final GeometryUtil geometryUtil;
 
     @Value("${speeding.threshold.kph:80}")
     private double speedingThresholdKph;
@@ -111,7 +118,10 @@ public class VehicleEventStreamProcessor {
                 })
                 .filter((key, event) -> event != null && event.getSpeedKph() > speedingThresholdKph)
                 .mapValues(this::createSpeedingAlert)
-                .peek((key, alertJson) -> log.info("🚨 SPEEDING ALERT PRODUCED: {}", alertJson));
+                .peek((key, alertJson) -> {
+                    log.info("🚨 SPEEDING ALERT PRODUCED: {}", alertJson);
+                    saveAndPublishAlert(alertJson);
+                });
 
         // Send to alerts topic
         speedingAlerts.to(VEHICLE_ALERTS_TOPIC, Produced.with(Serdes.String(), Serdes.String()));
@@ -128,7 +138,10 @@ public class VehicleEventStreamProcessor {
                 .transform(() -> new IdleTransformer(Duration.ofMinutes(idleThresholdMinutes), objectMapper),
                         IDLE_STATE_STORE)
                 .filter((key, alertJson) -> alertJson != null && !alertJson.isEmpty())
-                .peek((key, alertJson) -> log.info("🚨 IDLE ALERT PRODUCED for key {}: {}", key, alertJson));
+                .peek((key, alertJson) -> {
+                    log.info("🚨 IDLE ALERT PRODUCED for key {}: {}", key, alertJson);
+                    saveAndPublishAlert(alertJson);
+                });
 
         // Send to alerts topic
         idleAlerts.to(VEHICLE_ALERTS_TOPIC, Produced.with(Serdes.String(), Serdes.String()));
@@ -145,12 +158,47 @@ public class VehicleEventStreamProcessor {
                 .transform(() -> new GeofenceTransformer(geoFenceRepository, objectMapper),
                         GEOFENCE_STATE_STORE)
                 .filter((key, alertJson) -> alertJson != null && !alertJson.isEmpty())
-                .peek((key, alertJson) -> log.info("🚨 GEOFENCE ALERT PRODUCED for key {}: {}", key, alertJson));
+                .peek((key, alertJson) -> {
+                    log.info("🚨 GEOFENCE ALERT PRODUCED for key {}: {}", key, alertJson);
+                    saveAndPublishAlert(alertJson);
+                });
 
         // Send to alerts topic
         geofenceAlerts.to(VEHICLE_ALERTS_TOPIC, Produced.with(Serdes.String(), Serdes.String()));
 
         log.info("✅ Geofence alert stream configured");
+    }
+
+    /**
+     * Save alert to database and publish via SSE
+     */
+    private void saveAndPublishAlert(String alertJson) {
+        try {
+            AlertEventDTO alertEvent = objectMapper.readValue(alertJson, AlertEventDTO.class);
+            
+            // Save to database
+            VehicleAlert alert = new VehicleAlert();
+            alert.setVehicleId(alertEvent.getVehicleId());
+            alert.setAlertType(alertEvent.getAlertType());
+            alert.setDetails(objectMapper.writeValueAsString(alertEvent.getDetails()));
+            alert.setDetectedAt(alertEvent.getTimestamp());
+            alert.setLat(alertEvent.getLat());
+            alert.setLng(alertEvent.getLng());
+            
+            if (alertEvent.getLat() != null && alertEvent.getLng() != null) {
+                alert.setGeom(geometryUtil.createPoint(alertEvent.getLng(), alertEvent.getLat()));
+            }
+            
+            vehicleAlertRepository.save(alert);
+            log.info("💾 Saved alert to DB: {} for {}", alertEvent.getAlertType(), alertEvent.getVehicleId());
+            
+            // Publish via SSE
+            alertSsePublisher.publish(alertEvent);
+            log.info("📡 Published alert via SSE: {}", alertEvent.getAlertType());
+            
+        } catch (Exception e) {
+            log.error("❌ Failed to save/publish alert: {}", e.getMessage(), e);
+        }
     }
 
     private VehicleEventDTO parseVehicleEvent(String json) {

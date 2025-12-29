@@ -50,4 +50,16 @@ public interface VehicleReadingRepository extends JpaRepository<VehicleReading, 
          * Optional: Find readings with null location (for backfill)
          */
         List<VehicleReading> findAllByLocationIsNull();
+
+        /**
+         * ✅ Historical: Find readings for a vehicle within a date range
+         */
+        List<VehicleReading> findByVehicleIdAndEventTimestampBetweenOrderByEventTimestampDesc(
+                        String vehicleId, LocalDateTime from, LocalDateTime to);
+
+        /**
+         * ✅ Historical: Find all readings within a date range
+         */
+        List<VehicleReading> findByEventTimestampBetweenOrderByEventTimestampDesc(
+                        LocalDateTime from, LocalDateTime to);
 }

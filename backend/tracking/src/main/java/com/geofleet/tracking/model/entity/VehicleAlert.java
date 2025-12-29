@@ -1,6 +1,7 @@
 package com.geofleet.tracking.model.entity;
 
 import com.geofleet.tracking.model.enums.AlertType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
@@ -38,6 +39,7 @@ public class VehicleAlert {
     @Column(name = "lng")
     private Double lng;
 
+    @JsonIgnore  // Exclude from JSON serialization to prevent infinite recursion
     @Column(name = "geom", columnDefinition = "geography(Point, 4326)")
     private Point geom;
 }

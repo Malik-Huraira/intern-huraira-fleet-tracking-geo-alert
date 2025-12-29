@@ -1,71 +1,79 @@
 /* ================= Fonts ================= */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;700&display=swap");
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 /* ================= Tailwind ================= */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ================= Theme Tokens (Light Mode Only) ================= */
+/* ================= Professional Dark Theme ================= */
 @layer base {
   :root {
-    --background: 210 25% 97%;
-    --foreground: 220 25% 15%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 25% 15%;
-    --popover: 210 25% 98%;
-    --popover-foreground: 220 25% 15%;
+    /* Deep Navy/Slate Background */
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
 
-    --primary: 174 72% 40%;
-    --primary-foreground: 0 0% 100%;
+    /* Card - Slightly lighter than background */
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
 
-    --secondary: 220 18% 85%;
-    --secondary-foreground: 220 25% 20%;
+    /* Popover */
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
 
-    --muted: 210 18% 90%;
-    --muted-foreground: 220 15% 45%;
+    /* Primary - Vibrant Cyan/Teal */
+    --primary: 173 80% 40%;
+    --primary-foreground: 210 40% 98%;
 
-    --accent: 42 87% 55%;
-    --accent-foreground: 220 25% 10%;
+    /* Secondary - Muted Slate */
+    --secondary: 217 33% 25%;
+    --secondary-foreground: 210 40% 98%;
 
-    --destructive: 0 72% 50%;
-    --success: 174 72% 40%;
-    --warning: 42 87% 50%;
+    /* Muted - For subtle elements */
+    --muted: 217 33% 22%;
+    --muted-foreground: 215 20% 65%;
 
-    --border: 220 18% 88%;
-    --ring: 174 72% 40%;
-    --radius: 1.25rem;
+    /* Accent - Soft highlight */
+    --accent: 217 33% 25%;
+    --accent-foreground: 210 40% 98%;
 
-    --fleet-online: 174 72% 40%;
-    --fleet-idle: 42 87% 50%;
-    --fleet-offline: 0 60% 50%;
-    --fleet-geofence: 280 65% 55%;
+    /* Status Colors */
+    --destructive: 0 84% 60%;
+    --success: 160 84% 39%;
+    --warning: 38 92% 50%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(174 72% 50%) 0%, hsl(168 65% 45%) 100%);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%) 0%, hsl(210 25% 97%) 100%);
-    --gradient-glow: radial-gradient(ellipse at center, hsl(174 72% 50% / 0.1) 0%, transparent 70%);
+    /* Borders & Focus */
+    --border: 217 33% 25%;
+    --input: 217 33% 25%;
+    --ring: 173 80% 40%;
+    --radius: 0.75rem;
+
+    /* Fleet Status Colors */
+    --fleet-online: 160 84% 39%;
+    --fleet-idle: 38 92% 50%;
+    --fleet-offline: 0 84% 60%;
+    --fleet-geofence: 270 70% 60%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(173 80% 40%) 0%, hsl(190 80% 35%) 100%);
+    --gradient-card: linear-gradient(180deg, hsl(217 33% 19%) 0%, hsl(217 33% 15%) 100%);
+    --gradient-glow: radial-gradient(ellipse at center, hsl(173 80% 40% / 0.15) 0%, transparent 70%);
+  }
+
+  * {
+    @apply border-border;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 }
 
 /* ================= Components ================= */
 @layer components {
   .glass-panel {
-    @apply bg-card/80 backdrop-blur-xl border border-border/50 rounded-lg;
+    @apply bg-card/90 backdrop-blur-xl border border-border/50 rounded-xl shadow-xl;
   }
 
   .status-online {
@@ -88,6 +96,34 @@
     animation: highlight-pulse 2s ease-in-out infinite;
     z-index: 1000 !important;
   }
+
+  /* Professional Card Hover */
+  .card-hover {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .card-hover:hover {
+    @apply bg-accent/50 border-primary/30;
+    transform: translateY(-1px);
+  }
+
+  /* Stat Card */
+  .stat-card {
+    @apply flex items-center gap-4 px-5 py-3 rounded-xl bg-muted/30 border border-border/30;
+  }
+
+  /* Badge Styles */
+  .badge-success {
+    @apply bg-success/20 text-success border border-success/30;
+  }
+
+  .badge-warning {
+    @apply bg-warning/20 text-warning border border-warning/30;
+  }
+
+  .badge-destructive {
+    @apply bg-destructive/20 text-destructive border border-destructive/30;
+  }
 }
 
 /* ================= Utilities ================= */
@@ -107,6 +143,14 @@
 
   .animate-pulse-subtle {
     animation: pulseSubtle 2s ease-in-out infinite;
+  }
+
+  .glow-primary {
+    box-shadow: 0 0 20px hsl(173 80% 40% / 0.3);
+  }
+
+  .glow-success {
+    box-shadow: 0 0 15px hsl(160 84% 39% / 0.4);
   }
 }
 
@@ -159,6 +203,42 @@
   }
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, hsl(217 33% 30%), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* ================= Scrollbar ================= */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--primary));
+}
+
 /* ================= Leaflet ================= */
 .leaflet-container {
   background: hsl(var(--background)) !important;
@@ -168,15 +248,31 @@
 .leaflet-popup-content-wrapper {
   background: hsl(var(--card)) !important;
   border: 1px solid hsl(var(--border)) !important;
-  border-radius: 12px !important;
+  border-radius: 16px !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
 }
 
 .leaflet-popup-tip {
   background: hsl(var(--card)) !important;
 }
 
+.leaflet-popup-content {
+  margin: 0 !important;
+}
+
 .leaflet-control-zoom a {
   background: hsl(var(--card)) !important;
+  color: hsl(var(--foreground)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: hsl(var(--accent)) !important;
+}
+
+.leaflet-control-scale-line {
+  background: hsl(var(--card) / 0.9) !important;
+  border-color: hsl(var(--border)) !important;
   color: hsl(var(--foreground)) !important;
 }
 
@@ -196,38 +292,29 @@
 }
 
 .geofence-label {
-  background: rgba(30, 30, 40, 0.9);
-  border: none;
-  color: white;
+  background: hsl(var(--card) / 0.95) !important;
+  border: 1px solid hsl(270 70% 60% / 0.5) !important;
+  color: hsl(var(--foreground)) !important;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 12px;
   padding: 6px 12px;
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(4px);
-}
-
-.geofence-polygon {
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(8px);
 }
 
 @keyframes pulse-once {
 
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.3);
-    /* Matches --primary (green) */
+    box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.4);
   }
 
   50% {
-    box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+    box-shadow: 0 0 0 12px rgba(20, 184, 166, 0);
   }
 }
 
 .animate-pulse-once {
   animation: pulse-once 1.5s ease-out;
 }
-
-/* ================= Removed ================= */
-/* All dark mode (:root .dark, @media (prefers-color-scheme: dark)) sections have been completely removed */
-/* No more dark overrides or media queries */

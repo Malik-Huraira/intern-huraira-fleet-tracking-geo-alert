@@ -5,6 +5,7 @@ import com.geofleet.tracking.model.dto.AlertEventDTO;
 import com.geofleet.tracking.model.entity.VehicleAlert;
 import com.geofleet.tracking.repository.VehicleAlertRepository;
 import com.geofleet.tracking.sse.AlertSsePublisher;
+import com.geofleet.tracking.util.GeometryUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
@@ -20,6 +21,7 @@ public class AlertConsumer {
     private final ObjectMapper objectMapper;
     private final VehicleAlertRepository vehicleAlertRepository;
     private final AlertSsePublisher alertSsePublisher;
+    private final GeometryUtil geometryUtil;
 
     @KafkaListener(topics = "vehicle-alerts", groupId = "alert-consumer-group")
     @Transactional
@@ -37,9 +39,14 @@ public class AlertConsumer {
             alert.setDetectedAt(alertEvent.getTimestamp());
             alert.setLat(alertEvent.getLat());
             alert.setLng(alertEvent.getLng());
+            
+            // ✅ FIX: Populate geometry column for spatial queries
+            if (alertEvent.getLat() != null && alertEvent.getLng() != null) {
+                alert.setGeom(geometryUtil.createPoint(alertEvent.getLng(), alertEvent.getLat()));
+            }
 
             vehicleAlertRepository.save(alert);
-            log.info("✅ Saved alert: {} for vehicle {}", alertEvent.getAlertType(), alertEvent.getVehicleId());
+            log.info("✅ Saved alert: {} for vehicle {} with geometry", alertEvent.getAlertType(), alertEvent.getVehicleId());
 
             alertSsePublisher.publish(alertEvent);
             log.info("📡 Published alert via SSE: {}", alertEvent.getAlertType());

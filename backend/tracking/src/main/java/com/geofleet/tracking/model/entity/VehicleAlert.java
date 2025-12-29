@@ -6,6 +6,7 @@ import jakarta.persistence.*;
 import lombok.Data;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
+import org.locationtech.jts.geom.Point;
 import java.time.LocalDateTime;
 
 @Entity
@@ -36,4 +37,7 @@ public class VehicleAlert {
 
     @Column(name = "lng")
     private Double lng;
+
+    @Column(name = "geom", columnDefinition = "geography(Point, 4326)")
+    private Point geom;
 }

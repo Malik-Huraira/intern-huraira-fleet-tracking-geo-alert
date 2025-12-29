@@ -27,6 +27,21 @@ public interface GeoFenceRepository extends JpaRepository<GeoFence, Long> {
         List<GeoFence> findGeofencesContainingPoint(@Param("lat") double lat, @Param("lng") double lng);
 
         /**
+         * ✅ FIX: Find geofences within buffer distance for hysteresis
+         * Uses ST_DWithin for distance-based queries
+         */
+        @Query(value = """
+                        SELECT g.*
+                        FROM geofences g
+                        WHERE ST_DWithin(
+                            g.polygon_geom::geography,
+                            ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
+                            :distanceMeters
+                        )
+                        """, nativeQuery = true)
+        List<GeoFence> findGeofencesWithinDistance(@Param("lat") double lat, @Param("lng") double lng, @Param("distanceMeters") double distanceMeters);
+
+        /**
          * Find the name of the first geofence that covers the point (includes boundary)
          * Used by Kafka Streams (GeofenceTransformer) for entry/exit detection
          */

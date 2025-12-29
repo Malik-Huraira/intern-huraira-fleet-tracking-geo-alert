@@ -40,4 +40,43 @@ public interface VehicleAlertRepository extends JpaRepository<VehicleAlert, Long
      * Optional: Get alerts by type (SPEEDING, GEOFENCE, IDLE)
      */
     List<VehicleAlert> findByAlertTypeOrderByDetectedAtDesc(String alertType);
+
+    /**
+     * ✅ FIX: Find alerts within a geographic area using spatial queries
+     * Useful for area-based alert analysis
+     */
+    @Query(value = """
+            SELECT va.*
+            FROM vehicle_alerts va
+            WHERE ST_DWithin(
+                va.geom::geography,
+                ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography,
+                :radiusMeters
+            )
+            AND va.detected_at >= :since
+            ORDER BY va.detected_at DESC
+            """, nativeQuery = true)
+    List<VehicleAlert> findAlertsWithinRadius(
+            @Param("lat") double lat, 
+            @Param("lng") double lng, 
+            @Param("radiusMeters") double radiusMeters,
+            @Param("since") LocalDateTime since
+    );
+
+    /**
+     * ✅ FIX: Find alerts within a specific geofence area
+     * Uses the geofence polygon for precise area queries
+     */
+    @Query(value = """
+            SELECT va.*
+            FROM vehicle_alerts va
+            JOIN geofences g ON g.name = :geofenceName
+            WHERE ST_Within(va.geom, g.polygon_geom)
+            AND va.detected_at >= :since
+            ORDER BY va.detected_at DESC
+            """, nativeQuery = true)
+    List<VehicleAlert> findAlertsWithinGeofence(
+            @Param("geofenceName") String geofenceName,
+            @Param("since") LocalDateTime since
+    );
 }

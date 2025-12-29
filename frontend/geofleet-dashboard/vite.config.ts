@@ -18,4 +18,8 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  cacheDir: '/tmp/.vite',
+  optimizeDeps: {
+    force: true,
+  },
 });

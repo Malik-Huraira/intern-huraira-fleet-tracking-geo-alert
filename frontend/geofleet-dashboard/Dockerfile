@@ -4,6 +4,9 @@ FROM node:20-bullseye-slim
 # Set working directory
 WORKDIR /app
 
+# Create tmp directory for Vite cache
+RUN mkdir -p /tmp/.vite && chmod 777 /tmp/.vite
+
 # Copy package.json and package-lock.json first
 COPY package*.json ./
 

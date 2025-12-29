@@ -21,18 +21,22 @@ public class IdleState {
 
         boolean isIdleNow = currentSpeed <= 1.0; // Consider ≤ 1 kph as idle
 
-        if (isIdleNow && !isCurrentlyIdle) {
-            // Vehicle just became idle
-            firstIdleTime = timestamp;
-            isCurrentlyIdle = true;
-            alertSent = false;
-            log.debug("Vehicle {} became idle at {}", vehicleId, firstIdleTime);
-        } else if (!isIdleNow && isCurrentlyIdle) {
-            // Vehicle moved again - reset state
-            reset();
-            log.debug("Vehicle {} resumed movement", vehicleId);
+        if (isIdleNow) {
+            if (!isCurrentlyIdle || firstIdleTime == null) {
+                // Vehicle just became idle OR was never properly initialized
+                firstIdleTime = timestamp;
+                isCurrentlyIdle = true;
+                alertSent = false;
+                log.debug("Vehicle {} became idle at {}", vehicleId, firstIdleTime);
+            }
+            // If already idle with valid firstIdleTime, do nothing - wait for threshold
+        } else {
+            // Vehicle is moving - reset state
+            if (isCurrentlyIdle) {
+                reset();
+                log.debug("Vehicle {} resumed movement", vehicleId);
+            }
         }
-        // If still idle, do nothing - wait for threshold
     }
 
     public boolean shouldTriggerAlert(Duration idleThreshold) {

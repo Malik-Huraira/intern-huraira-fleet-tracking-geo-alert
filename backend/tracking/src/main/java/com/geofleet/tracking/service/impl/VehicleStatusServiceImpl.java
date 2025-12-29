@@ -1,10 +1,16 @@
 package com.geofleet.tracking.service.impl;
 
+import com.geofleet.tracking.model.dto.AlertEventDTO;
 import com.geofleet.tracking.model.dto.VehicleEventDTO;
 import com.geofleet.tracking.model.dto.VehicleStatusDTO;
+import com.geofleet.tracking.model.entity.VehicleAlert;
 import com.geofleet.tracking.model.entity.VehicleStatus;
+import com.geofleet.tracking.model.enums.AlertType;
+import com.geofleet.tracking.repository.VehicleAlertRepository;
 import com.geofleet.tracking.repository.VehicleStatusRepository;
 import com.geofleet.tracking.service.VehicleStatusService;
+import com.geofleet.tracking.sse.AlertSsePublisher;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -14,8 +20,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -24,6 +32,13 @@ import java.util.stream.Collectors;
 public class VehicleStatusServiceImpl implements VehicleStatusService {
 
     private final VehicleStatusRepository vehicleStatusRepository;
+    private final VehicleAlertRepository vehicleAlertRepository;
+    private final AlertSsePublisher alertSsePublisher;
+    private final ObjectMapper objectMapper;
+
+    // Track when each vehicle became idle and if alert was sent
+    private final Map<String, LocalDateTime> idleStartTimes = new ConcurrentHashMap<>();
+    private final Map<String, Boolean> idleAlertSent = new ConcurrentHashMap<>();
 
     @Value("${vehicle.status.online.threshold.minutes:1}")
     private int onlineThresholdMinutes;
@@ -33,6 +48,9 @@ public class VehicleStatusServiceImpl implements VehicleStatusService {
 
     @Value("${vehicle.status.offline.threshold.minutes:30}")
     private int offlineThresholdMinutes;
+
+    @Value("${idle.threshold.minutes:2}")
+    private int idleAlertThresholdMinutes;
 
     private static final Map<String, String> STATUS_COLORS = Map.of(
             "ONLINE", "green",
@@ -56,10 +74,80 @@ public class VehicleStatusServiceImpl implements VehicleStatusService {
         status.setLastSpeed(event.getSpeedKph());
         status.setLastSeen(LocalDateTime.now());
 
-        status.setStatus(determineVehicleStatus(status));
+        String newStatus = determineVehicleStatus(status);
+        status.setStatus(newStatus);
         vehicleStatusRepository.save(status);
 
+        // Track idle time and generate alerts
+        checkAndGenerateIdleAlert(event, newStatus);
+
         log.debug("Updated status for vehicle {}: {}", event.getVehicleId(), status.getStatus());
+    }
+
+    private void checkAndGenerateIdleAlert(VehicleEventDTO event, String status) {
+        String vehicleId = event.getVehicleId();
+        
+        if ("IDLE".equals(status)) {
+            // Vehicle is idle - track start time
+            if (!idleStartTimes.containsKey(vehicleId)) {
+                idleStartTimes.put(vehicleId, LocalDateTime.now());
+                idleAlertSent.put(vehicleId, false);
+                log.info("🛑 Vehicle {} became IDLE at {}", vehicleId, idleStartTimes.get(vehicleId));
+            }
+            
+            // Check if we should send alert
+            LocalDateTime idleStart = idleStartTimes.get(vehicleId);
+            long idleMinutes = Duration.between(idleStart, LocalDateTime.now()).toMinutes();
+            
+            if (idleMinutes >= idleAlertThresholdMinutes && !idleAlertSent.getOrDefault(vehicleId, false)) {
+                generateIdleAlert(event, idleMinutes);
+                idleAlertSent.put(vehicleId, true);
+                log.info("🚨 IDLE ALERT generated for {} after {} minutes", vehicleId, idleMinutes);
+            }
+        } else {
+            // Vehicle is moving - reset idle tracking
+            if (idleStartTimes.containsKey(vehicleId)) {
+                log.info("🚗 Vehicle {} resumed movement", vehicleId);
+                idleStartTimes.remove(vehicleId);
+                idleAlertSent.remove(vehicleId);
+            }
+        }
+    }
+
+    private void generateIdleAlert(VehicleEventDTO event, long idleMinutes) {
+        try {
+            // Create and save alert to database
+            VehicleAlert alert = new VehicleAlert();
+            alert.setVehicleId(event.getVehicleId());
+            alert.setAlertType(AlertType.IDLE);
+            alert.setDetectedAt(LocalDateTime.now());
+            alert.setLat(event.getLat());
+            alert.setLng(event.getLng());
+            
+            Map<String, Object> details = new HashMap<>();
+            details.put("idleMinutes", idleMinutes);
+            details.put("location", String.format("%.6f,%.6f", event.getLat(), event.getLng()));
+            details.put("reason", "Vehicle stationary for " + idleMinutes + " minutes");
+            alert.setDetails(objectMapper.writeValueAsString(details));
+            
+            vehicleAlertRepository.save(alert);
+            log.info("💾 Saved IDLE alert to database for {}", event.getVehicleId());
+            
+            // Publish via SSE
+            AlertEventDTO alertEvent = new AlertEventDTO();
+            alertEvent.setVehicleId(event.getVehicleId());
+            alertEvent.setAlertType(AlertType.IDLE);
+            alertEvent.setDetails(details);
+            alertEvent.setTimestamp(LocalDateTime.now());
+            alertEvent.setLat(event.getLat());
+            alertEvent.setLng(event.getLng());
+            
+            alertSsePublisher.publish(alertEvent);
+            log.info("📡 Published IDLE alert via SSE for {}", event.getVehicleId());
+            
+        } catch (Exception e) {
+            log.error("❌ Failed to generate idle alert: {}", e.getMessage(), e);
+        }
     }
 
     @Override
@@ -105,13 +193,22 @@ public class VehicleStatusServiceImpl implements VehicleStatusService {
 
         long minutesSinceLastSeen = Duration.between(status.getLastSeen(), LocalDateTime.now()).toMinutes();
 
-        if (minutesSinceLastSeen <= onlineThresholdMinutes) {
-            return "ONLINE";
-        } else if (minutesSinceLastSeen <= idleThresholdMinutes) {
-            return "IDLE";
-        } else {
+        // Check if offline first (no data for too long)
+        if (minutesSinceLastSeen > offlineThresholdMinutes) {
             return "OFFLINE";
         }
+        
+        // Check if idle based on speed (vehicle is stationary)
+        if (status.getLastSpeed() != null && status.getLastSpeed() <= 1.0) {
+            return "IDLE";
+        }
+        
+        // Check if idle based on time (no recent updates but not offline)
+        if (minutesSinceLastSeen > idleThresholdMinutes) {
+            return "IDLE";
+        }
+        
+        return "ONLINE";
     }
 
     private VehicleStatusDTO convertToDTO(VehicleStatus entity) {

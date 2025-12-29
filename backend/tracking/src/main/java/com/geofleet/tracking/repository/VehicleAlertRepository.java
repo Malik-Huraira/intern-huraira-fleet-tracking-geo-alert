@@ -1,7 +1,9 @@
 package com.geofleet.tracking.repository;
 
 import com.geofleet.tracking.model.entity.VehicleAlert;
+import com.geofleet.tracking.model.enums.AlertType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -11,6 +13,56 @@ import java.util.List;
 
 @Repository
 public interface VehicleAlertRepository extends JpaRepository<VehicleAlert, Long> {
+
+    // ==================== DELETE OPERATIONS ====================
+
+    /**
+     * Delete alerts by vehicle ID
+     */
+    @Modifying
+    @Query("DELETE FROM VehicleAlert va WHERE va.vehicleId = :vehicleId")
+    int deleteByVehicleId(@Param("vehicleId") String vehicleId);
+
+    /**
+     * Delete alerts by alert type
+     */
+    @Modifying
+    @Query("DELETE FROM VehicleAlert va WHERE va.alertType = :alertType")
+    int deleteByAlertType(@Param("alertType") AlertType alertType);
+
+    /**
+     * Delete alerts within a date range
+     */
+    @Modifying
+    @Query("DELETE FROM VehicleAlert va WHERE va.detectedAt >= :from AND va.detectedAt <= :to")
+    int deleteByDetectedAtBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    /**
+     * Delete alerts by vehicle ID and date range
+     */
+    @Modifying
+    @Query("DELETE FROM VehicleAlert va WHERE va.vehicleId = :vehicleId AND va.detectedAt >= :from AND va.detectedAt <= :to")
+    int deleteByVehicleIdAndDetectedAtBetween(
+            @Param("vehicleId") String vehicleId,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    /**
+     * Delete alerts by type and date range
+     */
+    @Modifying
+    @Query("DELETE FROM VehicleAlert va WHERE va.alertType = :alertType AND va.detectedAt >= :from AND va.detectedAt <= :to")
+    int deleteByAlertTypeAndDetectedAtBetween(
+            @Param("alertType") AlertType alertType,
+            @Param("from") LocalDateTime from,
+            @Param("to") LocalDateTime to);
+
+    /**
+     * Delete all alerts (use with caution!)
+     */
+    @Modifying
+    @Query("DELETE FROM VehicleAlert va")
+    int deleteAllAlerts();
 
     /**
      * Get all alerts for a specific vehicle, most recent first

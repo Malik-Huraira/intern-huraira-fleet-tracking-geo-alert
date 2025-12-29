@@ -170,35 +170,12 @@ public class VehicleEventStreamProcessor {
     }
 
     /**
-     * Save alert to database and publish via SSE
+     * Publish alert via SSE only (DB save is handled by AlertConsumer)
      */
     private void saveAndPublishAlert(String alertJson) {
-        try {
-            AlertEventDTO alertEvent = objectMapper.readValue(alertJson, AlertEventDTO.class);
-            
-            // Save to database
-            VehicleAlert alert = new VehicleAlert();
-            alert.setVehicleId(alertEvent.getVehicleId());
-            alert.setAlertType(alertEvent.getAlertType());
-            alert.setDetails(objectMapper.writeValueAsString(alertEvent.getDetails()));
-            alert.setDetectedAt(alertEvent.getTimestamp());
-            alert.setLat(alertEvent.getLat());
-            alert.setLng(alertEvent.getLng());
-            
-            if (alertEvent.getLat() != null && alertEvent.getLng() != null) {
-                alert.setGeom(geometryUtil.createPoint(alertEvent.getLng(), alertEvent.getLat()));
-            }
-            
-            vehicleAlertRepository.save(alert);
-            log.info("💾 Saved alert to DB: {} for {}", alertEvent.getAlertType(), alertEvent.getVehicleId());
-            
-            // Publish via SSE
-            alertSsePublisher.publish(alertEvent);
-            log.info("📡 Published alert via SSE: {}", alertEvent.getAlertType());
-            
-        } catch (Exception e) {
-            log.error("❌ Failed to save/publish alert: {}", e.getMessage(), e);
-        }
+        // Note: DB save is handled by AlertConsumer to avoid duplicates
+        // This method only publishes to SSE for immediate UI updates
+        // The AlertConsumer will save to DB when it consumes from vehicle-alerts topic
     }
 
     private VehicleEventDTO parseVehicleEvent(String json) {

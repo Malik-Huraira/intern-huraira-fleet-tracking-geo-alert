@@ -11,6 +11,7 @@ import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
+import org.springframework.kafka.listener.CommonErrorHandler;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 
 import java.util.HashMap;
@@ -18,6 +19,7 @@ import java.util.Map;
 
 @Configuration
 @EnableKafka
+@SuppressWarnings("null")
 public class KafkaConsumerConfig {
 
     @Value("${spring.kafka.bootstrap-servers}")
@@ -39,14 +41,15 @@ public class KafkaConsumerConfig {
     public ConsumerFactory<String, VehicleEventDTO> vehicleEventConsumerFactory() {
         JsonDeserializer<VehicleEventDTO> deserializer = new JsonDeserializer<>(VehicleEventDTO.class, false);
         deserializer.addTrustedPackages("*");
-
         return new DefaultKafkaConsumerFactory<>(baseConsumerProps(), new StringDeserializer(), deserializer);
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, VehicleEventDTO> vehicleKafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, VehicleEventDTO> vehicleKafkaListenerContainerFactory(
+            CommonErrorHandler kafkaErrorHandler) {
         ConcurrentKafkaListenerContainerFactory<String, VehicleEventDTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(vehicleEventConsumerFactory());
+        factory.setCommonErrorHandler(kafkaErrorHandler); // DLQ support
         return factory;
     }
 
@@ -54,14 +57,15 @@ public class KafkaConsumerConfig {
     public ConsumerFactory<String, AlertEventDTO> alertEventConsumerFactory() {
         JsonDeserializer<AlertEventDTO> deserializer = new JsonDeserializer<>(AlertEventDTO.class, false);
         deserializer.addTrustedPackages("*");
-
         return new DefaultKafkaConsumerFactory<>(baseConsumerProps(), new StringDeserializer(), deserializer);
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, AlertEventDTO> alertKafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, AlertEventDTO> alertKafkaListenerContainerFactory(
+            CommonErrorHandler kafkaErrorHandler) {
         ConcurrentKafkaListenerContainerFactory<String, AlertEventDTO> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(alertEventConsumerFactory());
+        factory.setCommonErrorHandler(kafkaErrorHandler); // DLQ support
         return factory;
     }
 }

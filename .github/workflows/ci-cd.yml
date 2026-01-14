@@ -2,9 +2,9 @@ name: GeoFleet CI/CD Pipeline
 
 on:
   push:
-    branches: [main, master]
+    branches: [main, master, microservices]
   pull_request:
-    branches: [main, master]
+    branches: [main, master, microservices]
 
 jobs:
   # Job 1: Build and Test
